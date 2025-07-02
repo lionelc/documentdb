@@ -78,7 +78,7 @@ The following sections detail how specific MongoDB roles are mapped to DocumentD
 ### Built-In roles
 
 **Note: We only support privileges for which the corresponding commands are supported by documentDB. For a list of privileges we cannot support
-since the corresponding commands are not supported by documentDB please see [Privileges with DocumentDB backend incompatibility](#privileges-we-dont-intend-to-support). None of these privileges are supported for any of the roles below.**
+since the corresponding commands are not supported by documentDB please see [Privileges with DocumentDB backend incompatibility](#privileges-with-documentdb-backend-incompatibility). None of these privileges are supported for any of the roles below.**
 
 ### Link to ConnectionStatus design document
 
