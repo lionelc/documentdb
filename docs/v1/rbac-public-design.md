@@ -37,32 +37,32 @@ as well as fostering interoperability.
   - [User/Role CRUD RBAC](#userrole-crud-rbac)
     - [CreateRole and CreateUser](#createrole-and-createuser)
     - [UpdateRole and UpdateUser, DropRole and DropUser, GrantRole and RevokeRole across all databases](#updaterole-and-updateuser-droprole-and-dropuser-grantrole-and-revokerole-across-all-databases)
-  - [APPENDIX](#appendix)
-    - [Collection Level Access Control with the ability to only execute required functions](#collection-level-access-control-with-the-ability-to-only-execute-required-functions)
-    - [Additional Built-In Roles we will support in future phases](#additional-built-in-roles-we-will-support-in-future-phases)
-    - [Built-In roles not planned for support](#built-in-roles-not-planned-for-support)
-    - [Additional privileges we will support in future phases](#additional-privileges-we-will-support-in-future-phases)
-    - [Privileges not planned for support](#privileges-not-planned-for-support)
-    - [Privileges with DocumentDB backend incompatibility](#privileges-with-DocumentDB-backend-incompatibility)
-    - [DB level access control Find, Insert, Update, Remove](#db-level-access-control-find-insert-update-remove-after-migrating-to-a-new-data-model-where-pg-schema--mongo-db)
-    - [CreateCollection](#createcollection)
-      - [Database level](#database-level)
-      - [Collection level](#collection-level)
-    - [DropCollection](#dropcollection)
-      - [DropCollection at Database level](#dropcollection-at-database-level)
-      - [DropCollection at Collection level](#dropcollection-at-collection-level)
-    - [ListCollections](#listcollections)
-    - [Users per DB](#users-per-db)
-    - [Grant/Revoke roles to user](#grantrevoke-roles-to-user)
-      - [Grant roles to user](#grant-roles-to-user)
-      - [Revoking roles](#revoking-roles)
-    - [Role Management API support in future phases](#role-management-api-support-in-future-phases)
-      - [dropAllRolesFromDatabase](#dropallrolesfromdatabase)
-      - [grantPrivilegesToRole](#grantprivilegestorole)
-      - [grantRolesToRole](#grantrolestorole)
-      - [revokePrivilegesFromRole](#revokeprivilegesfromrole)
-      - [revokeRolesFromRole](#revokerolesfromrole)
 - [Integrating with other policy engines](#integrating-with-other-policy-engines)
+- [APPENDIX](#appendix)
+  - [Collection Level Access Control with the ability to only execute required functions](#collection-level-access-control-with-the-ability-to-only-execute-required-functions)
+  - [Additional Built-In Roles we will support in future phases](#additional-built-in-roles-we-will-support-in-future-phases)
+  - [Built-In roles not planned for support](#built-in-roles-not-planned-for-support)
+  - [Additional privileges we will support in future phases](#additional-privileges-we-will-support-in-future-phases)
+  - [Privileges not planned for support](#privileges-not-planned-for-support)
+  - [Privileges with DocumentDB backend incompatibility](#privileges-with-DocumentDB-backend-incompatibility)
+  - [DB level access control Find, Insert, Update, Remove](#db-level-access-control-find-insert-update-remove-after-migrating-to-a-new-data-model-where-pg-schema--mongo-db)
+  - [CreateCollection](#createcollection)
+    - [Database level](#database-level)
+    - [Collection level](#collection-level)
+  - [DropCollection](#dropcollection)
+    - [DropCollection at Database level](#dropcollection-at-database-level)
+    - [DropCollection at Collection level](#dropcollection-at-collection-level)
+  - [ListCollections](#listcollections)
+  - [Users per DB](#users-per-db)
+  - [Grant/Revoke roles to user](#grantrevoke-roles-to-user)
+    - [Grant roles to user](#grant-roles-to-user)
+    - [Revoking roles](#revoking-roles)
+  - [Role Management API support in future phases](#role-management-api-support-in-future-phases)
+    - [dropAllRolesFromDatabase](#dropallrolesfromdatabase)
+    - [grantPrivilegesToRole](#grantprivilegestorole)
+    - [grantRolesToRole](#grantrolestorole)
+    - [revokePrivilegesFromRole](#revokeprivilegesfromrole)
+    - [revokeRolesFromRole](#revokerolesfromrole)
 
 ## Role Mapping
 Role mapping is the process of translating MongoDB (MDB)'s role-based access control (RBAC) system to PostgreSQL (PG)'s role and privilege system. Since MDB and PG have different role models and privilege structures, we need to map MongoDB roles and their associated privileges to equivalent PG roles and permissions.
@@ -439,9 +439,19 @@ The user must have CREATEROLE privilege and must have ADMIN privileges on the ta
 We will create a new role *documentdb_user_admin_any_database_role* which will be granted ADMIN option on every role/user created and will also have the CREATE ROLE privilege.
 Any user who needs to have the ability to DropRole, DropUser, GrantRole and RevokeRole on roles other than the ones they create need to be granted UserAdminAnyDatabase.
 
-### APPENDIX
+## Integrating with other policy engines
 
-#### Collection Level Access Control with the ability to only execute required functions
+In future phases, we will build in the support to integrate with other policy engines such as Azure Purview. In order to do this we will need to add support for the following
+
+1. Create roles based on Policy
+2. Policy Engine Aggregator
+3. A translation layer that can translate these policy based roles into native PG roles
+
+![](images/integration_with_external_policy_engine.png)
+
+## APPENDIX
+
+### Collection Level Access Control with the ability to only execute required functions
 
 Today the ability to execute all our functions in all our schemas is granted to PUBLIC. This means as soon as a user is granted USAGE on a schema they can execute all the functions in that schema. We need to make the following changes
 
@@ -451,14 +461,14 @@ Today the ability to execute all our functions in all our schemas is granted to 
 4. Change default privileges to revoke execute on all functions from PUBLIC and grant execute on all functions to admin_role and root.
 5. For each role below only grant execute on the top level functions corresponding to the privilege and any functions called by these top level functions. Any breaking changes here will be caught by tests.
 
-##### Find
+#### Find
 
 1. GRANT EXECUTE ON documentdb_api.aggregate_cursor_first_page, documentdb_api.find_cursor_first_page, documentdb_api.cursor_get_more in the documentdb_api schema.
 2. GRANT USAGE ON SCHEMA documentdb_api, mongo_catalog, mongo_api_v1, documentdb_core, mongo_data TO find_role. We will need to grant execute on other internal functions as needed.
 3. GRANT SELECT ON TABLE mongo_data.documents_collectionId TO find_role
 4. If we have a collection that's sharded across multiple nodes we need to run the function grant operations within *run_command_on_worker*
 
-##### Insert
+#### Insert
 
 1. GRANT EXECUTE ON documentdb_api.insert, documentdb_api.insert_bulk, documentdb_api.insert_one to find_role.
 2. GRANT INSERT ON TABLE mongo_data.documents_collectionId TO find_role.
@@ -466,21 +476,21 @@ Today the ability to execute all our functions in all our schemas is granted to 
 4. In case Insert would result in a new collection being created the command will fail since the role will not have INSERT privileges on mongo_catalog.collections
 5. If we have a collection that's sharded across multiple nodes we need to run the function grant operations within *run_command_on_worker*
 
-##### Update
+#### Update
 
 1. GRANT EXECUTE ON documentdb_api.find_and_modify, documentdb_api.update, documentdb_api.update_bulk to find_role.
 2. GRANT UPDATE ON TABLE mongo_data.documents_collectionId TO find_role.
 3. GRANT USAGE ON SCHEMA documentdb_api, mongo_catalog, mongo_api_v1, documentdb_core, mongo_data TO find_role. We will need to grant execute on other internal functions as needed.
 4. If we have a collection that's sharded across multiple nodes we need to run the function grant operations within *run_command_on_worker*
 
-##### Remove
+#### Remove
 
 1. GRANT EXECUTE ON documentdb_api.delete to find_role.
 2. GRANT DELETE ON TABLE mongo_data.documents_collectionId TO find_role.
 3. GRANT USAGE ON SCHEMA documentdb_api, mongo_catalog, mongo_api_v1, documentdb_core, mongo_data TO find_role. We will need to grant execute on other internal functions as needed.
 4. If we have a collection that's sharded across multiple nodes we need to run the schema grant operations within *run_command_on_worker*
 
-#### Additional Built-In Roles we will support in future phases
+### Additional Built-In Roles we will support in future phases
 
 | Role               | Scope    |
 |--------------------|----------|
@@ -493,7 +503,7 @@ Today the ability to execute all our functions in all our schemas is granted to 
 | root               | cluster  |
 | clusterAdmin       | cluster  |
 
-#### Built-In roles not planned for support
+### Built-In roles not planned for support
 
 | Role                  | Scope    |
 |-----------------------|----------|
@@ -507,7 +517,7 @@ Today the ability to execute all our functions in all our schemas is granted to 
 | backup                | cluster  |
 | restore               | cluster  |
 
-#### Additional privileges we will support in future phases
+### Additional privileges we will support in future phases
 
 | Privilege           | Scope                       |
 |---------------------|-----------------------------|
@@ -529,7 +539,7 @@ Today the ability to execute all our functions in all our schemas is granted to 
 | reshardCollection   | database/collection         |
 | addShard            | cluster                     |
 
-#### Privileges not planned for support
+### Privileges not planned for support
 
 Add a comments column about why we're not supporting them.
 
@@ -606,7 +616,7 @@ Add a comments column about why we're not supporting them.
 | validate                            | database/collection                    |                                     |
 | top                                 | cluster                                |                                     |
 
-#### Privileges with DocumentDB backend incompatibility
+### Privileges with DocumentDB backend incompatibility
 
 Since DocumentDB does not support the underlying commands, the following privileges are not on the roadmap.
 
@@ -638,7 +648,7 @@ Since DocumentDB does not support the underlying commands, the following privile
 | transitionToDedicatedConfigServer   | cluster                                |                                     |
 | transitionFromDedicatedConfigServer | cluster                                |                                     |
 
-#### DB level access control Find, Insert, Update, Remove (After migrating to a new data model where PG Schema = Mongo DB)
+### DB level access control Find, Insert, Update, Remove (After migrating to a new data model where PG Schema = Mongo DB)
 
 We want to move to a schema where we map each Mongo DB to it's own PG schema of the same name. This is a feature on its own and a roadmap is to be determined on when and how this will land concerning backend support, which would achieve DB level access control in the following way:
 
@@ -649,9 +659,9 @@ We want to move to a schema where we map each Mongo DB to it's own PG schema of 
 | **Update**               | DB             | `GRANT USAGE ON SCHEMA DBName TO UserName;`<br>`GRANT documentdb_user TO new_user;`<br>`GRANT SELECT, UPDATE ON ALL TABLES IN SCHEMA DBName TO UserName;`<br>`ALTER DEFAULT PRIVILEGES IN SCHEMA DBName GRANT SELECT, UPDATE ON TABLES TO UserName;` |
 | **Remove**               | DB             | `GRANT USAGE ON SCHEMA DBName TO UserName;`<br>`GRANT documentdb_user TO new_user;`<br>`GRANT SELECT, DELETE ON ALL TABLES IN SCHEMA DBName TO UserName;`<br>`ALTER DEFAULT PRIVILEGES IN SCHEMA DBName GRANT SELECT, DELETE ON TABLES TO UserName;` |
 
-#### CreateCollection
+### CreateCollection
 
-##### Database level
+#### Database level
 
 To grant CreateCollection at the Mongo Database level we need to grant CREATE to a PG role for the entire schema.
 
@@ -660,27 +670,27 @@ There is privilege creep here where the user will be able to create more than ju
 
 GRANT CREATE ON SCHEMA DBName TO UserName;
 
-##### Collection level
+#### Collection level
 
 Granting CreateCollection at the Mongo collection level is not natively supported in PG since PG does not let us GRANT privileges on objects that don't yet exist. **So the current plan is not to support it, we will revisit this as needed based on customer asks.**
 If we do want to support it we can create an empty table with this name and make the user the owner of the table and remove all privileges on this table from everyone else.
 
-#### DropCollection
+### DropCollection
 
-##### DropCollection at Database level
+#### DropCollection at Database level
 
 In order to drop all collections within a DB the user needs to be a DBOwner. In our implementation they need to be the owner of the PG schema that corresponds to this DB. However being the DB Owner grants them additional privileges including Find, Insert, Update, Delete, CreateCollection and DropCollection on all the collections in the DB.
 
-##### DropCollection at Collection level
+#### DropCollection at Collection level
 
 We have Citus dependency where pgmongo_role needs to be the owner of all the tables in PG. As a result we cannot support the DropCollection privilege at the collection level.
 
-#### ListCollections
+### ListCollections
 
 This is a database level privilege in Mongo. This maps to having USAGE privileges on a schema in PG
 GRANT USAGE ON SCHEMA DBName TO userName;
 
-#### Users per DB
+### Users per DB
 
 MongoDB supports users per authentication DB. For instance the two users below are considered different users
 
@@ -726,9 +736,9 @@ A few things to keep in mind here
 
 Therefore, if we choose to go this route we will run into situations where the the PG username may be too big, we will error out in these cases and explain to the user why.
 
-#### Grant/Revoke roles to user
+### Grant/Revoke roles to user
 
-#### Grant roles to user
+### Grant roles to user
 
 ```
 db.runCommand(
@@ -752,7 +762,7 @@ db.runCommand( { grantRolesToUser: "accountUser01",
              } )
 ```
 
-#### Revoking roles
+### Revoking roles
 
 ```
 db.runCommand(
@@ -779,7 +789,7 @@ db.runCommand( { revokeRolesFromUser: "accountUser01",
              } )
 ```
 
-#### Role Management API support in future phases
+### Role Management API support in future phases
 
 Unlike MongoDB which supports both Users and Roles, PG only supports Roles. Users in PG are Roles with LOGIN privilege.
 
@@ -791,7 +801,7 @@ We will support the following role management commands
 4. revokePrivilegesFromRole
 5. revokeRolesFromRole
 
-##### dropAllRolesFromDatabase
+#### dropAllRolesFromDatabase
 
 Deletes all custom roles from a specific database
 
@@ -806,7 +816,7 @@ db.runCommand(
 We will only support the parameter *dropAllRolesFromDatabase*.
 We will no support the parameters *writeConcern* and *comment*.
 
-##### grantPrivilegesToRole
+#### grantPrivilegesToRole
 
 Assigns additional privileges to a user-defined role defined on the database on which the command is run.
 
@@ -827,7 +837,7 @@ db.runCommand(
 We will only support the parameters *grantPrivilegesToRole* and *grantPrivilegesToRole*.
 We will not support the parameters *writeConcern* and *comment*.
 
-##### grantRolesToRole
+#### grantRolesToRole
 
 Grants roles to a user-defined role.
 
@@ -846,7 +856,7 @@ db.runCommand(
 We will only support the parameters *grantRolesToRole* and *roles*.
 We will not support the parameters *writeConcern*, *comment*.*
 
-##### revokePrivilegesFromRole
+#### revokePrivilegesFromRole
 
 Removes the specified privileges from the user-defined role on the database where the command is run.
 
@@ -864,7 +874,7 @@ db.runCommand(
 )
 ```
 
-##### revokeRolesFromRole
+#### revokeRolesFromRole
 
 Removes the specified inherited roles from a role.
 
@@ -882,12 +892,4 @@ db.runCommand(
 
 We will only support the parameters *revokeRolesFromRole* and *roles*. We will not support the parameters *writeConcern* and *comment*.
 
-## Integrating with other policy engines
 
-In future phases, we will build in the support to integrate with other policy engines such as Azure Purview. In order to do this we will need to add support for the following
-
-1. Create roles based on Policy
-2. Policy Engine Aggregator
-3. A translation layer that can translate these policy based roles into native PG roles
-
-![](images/integration_with_external_policy_engine.png)
