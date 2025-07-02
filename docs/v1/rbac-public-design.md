@@ -18,7 +18,7 @@ as well as fostering interoperability.
 
 - [Role Mapping](#role-mapping)
   - [Built-In roles](#built-in-roles)
-    - [Detailed definition for documentdb roles](#detailed-definition-for-documentdb-roles)
+    - [Detailed definition for DocumentDB roles](#detailed-definition-for-documentdb-roles)
     - [Integration Testing with Other Features](#integration-testing-with-other-features)
   - [Custom Roles](#custom-roles)
     - [CreateRole](#createrole)
@@ -93,7 +93,7 @@ Currently, customer has to provision readWriteAnyDatabase and clusterAdmin roles
 Going forward, we'll let customer provision readWriteAnyDatabase role alone.
 Internally this is represented by the documentdb_readwrite_role and inherits from {pg_read_all_data, pg_write_all_data}.
 
-We need to explicitly block this role from accessing these commands
+We need to explicitly block this role from accessing these commands:
 
 1. dropDatabase
 2. collMod
