@@ -7,7 +7,7 @@ integrate alternative solutions, ensuring adaptability to various security requi
 
 In a nutshell, the RBAC design includes 2 parts: 
 
-- Role mapping: for MongoDB compatibility, corresponding roles are created and implemented in the backend which allows for 
+- Role mapping: for compatibility, corresponding roles are created and implemented in the backend which allows for 
 previlege actions. As a baseline, the specifications around role mapping takes up most of this document.
 
 - Integrating with policy engines: while role mapping essentially delegates the fundamental security to the database backend,
@@ -27,8 +27,8 @@ as well as fostering interoperability.
     - [rolesInfo](#rolesinfo)
   - [User CRUD API changes](#user-crud-api-changes)
     - [UpdateUser](#updateuser)
-  - [Privilege Actions in MongoDB](#privilege-actions-in-mongodb)
-    - [How do we store Mongo databases and collections in the backend](#how-do-we-store-mongo-databases-and-collections-in-the-backend)
+  - [Compatible Privilege Actions](#compatible-privilege-actions)
+    - [How do we store comptable databases and collections in the backend](#how-do-we-store-compatible-databases-and-collections-in-the-backend)
     - [Collection level access control](#collection-level-access-control)
       - [Find](#find)
       - [Insert](#insert)
@@ -45,7 +45,7 @@ as well as fostering interoperability.
   - [Additional privileges we will support in future phases](#additional-privileges-we-will-support-in-future-phases)
   - [Privileges not planned for support](#privileges-not-planned-for-support)
   - [Privileges with DocumentDB backend incompatibility](#privileges-with-DocumentDB-backend-incompatibility)
-  - [DB level access control Find, Insert, Update, Remove](#db-level-access-control-find-insert-update-remove-after-migrating-to-a-new-data-model-where-pg-schema--mongo-db)
+  - [DB level access control Find, Insert, Update, Remove](#database-level-access-control-find-insert-update-remove-after-migrating-to-a-new-data-model-where-pg-schema--compatible-db)
   - [CreateCollection](#createcollection)
     - [Database level](#database-level)
     - [Collection level](#collection-level)
@@ -65,7 +65,7 @@ as well as fostering interoperability.
     - [revokeRolesFromRole](#revokerolesfromrole)
 
 ## Role Mapping
-Role mapping is the process of translating MongoDB (MDB)'s role-based access control (RBAC) system to PostgreSQL (PG)'s role and privilege system. Since MDB and PG have different role models and privilege structures, we need to map MongoDB roles and their associated privileges to equivalent PG roles and permissions.
+Role mapping is the process of translating the compatible database (DB)'s role-based access control (RBAC) system to PostgreSQL (PG)'s role and privilege system. Since MDB and PG have different role models and privilege structures, we need to map those compatible roles and their associated privileges to equivalent PG roles and permissions.
 
 This mapping ensures that:
 - Users can authenticate and receive appropriate permissions in the PG backend
@@ -73,7 +73,7 @@ This mapping ensures that:
 - Administrative operations in MDB (like user management) properly translate to PG role operations
 - Built-in MDB roles (like `readAnyDatabase`, `readWriteAnyDatabase`) have corresponding DocumentDB roles with equivalent capabilities
 
-The following sections detail how specific MongoDB roles are mapped to DocumentDB/PG roles, including any differences in supported privileges. In addition, the Appendix section contains what will be implemented in later phases, as well as earlier designs we considered but abandoned.
+The following sections detail how specific compatible roles are mapped to DocumentDB/PG roles, including any differences in supported privileges. In addition, the Appendix section contains what will be implemented in later phases, as well as earlier designs we considered but abandoned.
 
 ### Built-In roles
 
@@ -118,7 +118,7 @@ We will create a new PG role called documentdb_user_admin_role and do the follow
 1. We will grant CREATEROLE privileges to documentdb_user_admin_role. This will allow documentdb_user_admin_role to create new roles.
 2. We will grant admin privileges on all existing and future users to documentdb_user_admin_role. This will allow documentdb_user_admin_role
 to Update and Delete all users in the system.
-3. We will grant access to the documentdb_api schema and read access on the mongo_catalog.collections table so that documentdb_user_admin_role
+3. We will grant access to the documentdb_api schema and read access on the documentdb_catalog.collections table so that documentdb_user_admin_role
 can call listDatabases.
 
 ##### documentdb_admin_role
@@ -147,7 +147,7 @@ We will test to ensure the feature is compatible with each of these.
 
 ### Custom Roles
 
-Unlike MongoDB which supports both Users and Roles, PG only supports Roles. Users in PG are Roles with LOGIN privilege.
+Unlike the compatible DB which supports both Users and Roles, PG only supports Roles. Users in PG are Roles with LOGIN privilege.
 
 1. createRole
 2. dropRole
@@ -317,9 +317,9 @@ Sample output
 }
 ```
 
-### User CRUD API changes
+### User CRUD (Create, Read, Update and Delete) API changes
 
-For all MongoDB users we will create ROLE WITH LOGIN in PG, which is currently in place.
+For all DocumentDB users we will create ROLE WITH LOGIN in PG, which is currently in place.
 
 #### UpdateUser
 
@@ -344,7 +344,7 @@ db.runCommand( {
 } )
 ```
 
-### Privilege Actions in MongoDB
+### Compatible Privilege Actions
 
 | Privilege Action | Collection | Database                                                                     | Cluster |
 |------------------|------------|------------------------------------------------------------------------------|---------|
@@ -360,11 +360,9 @@ db.runCommand( {
 | grantRole        | N/A        | For now, only supported for all databases, cannot scope to specific database | N/A     |
 | revokeRole       | N/A        | For now, only supported for all databases, cannot scope to specific database | N/A     |
 
-#### How do we store Mongo databases and collections in the backend
+#### How do we store compatible databases and collections in the backend
 
-To implement full RBAC for MongoDB we need to understand how we store Mongo databases and collections in the backend (which talks in terms of tables).
-
-We achieve this with the aid of the mongo_catalog.collections table.
+To implement full RBAC, we need to understand how we store compatible databases and collections in the backend (which talks in terms of tables). We achieve this with the aid of the documentdb_catalog.collections table.
 
 postgres=# select * from collections;
 
@@ -378,27 +376,27 @@ postgres=# select * from collections;
 
 For all privilges below we need to
 
-1. GRANT USAGE ON SCHEMA documentdb_api, mongo_catalog, mongo_api_v1, documentdb_core, mongo_data TO userName.
+1. GRANT USAGE ON SCHEMA documentdb_api, documentdb_catalog, documentdb_api_v1, documentdb_core, documentdb_data TO userName.
 2. If we have a collection that's sharded across multiple nodes we need to run the function grant operations within *run_command_on_worker*
 
 In addition we need to do the following for the specific roles
 
 ##### Find
 
-- GRANT SELECT ON TABLE mongo_data.documents_collectionId TO userName.
+- GRANT SELECT ON TABLE documentdb_data.documents_collectionId TO userName.
 
 ##### Insert
 
-- GRANT INSERT ON TABLE mongo_data.documents_collectionId TO userName.
-- In case Insert would result in a new collection being created the command will fail since the role will not have INSERT privileges on mongo_catalog.collections
+- GRANT INSERT ON TABLE documentdb_data.documents_collectionId TO userName.
+- In case Insert would result in a new collection being created the command will fail since the role will not have INSERT privileges on documentdb_catalog.collections
 
 ##### Update
 
-- GRANT SELECT, UPDATE ON TABLE mongo_data.documents_collectionId TO userName.
+- GRANT SELECT, UPDATE ON TABLE documentdb_data.documents_collectionId TO userName.
 
 ##### Remove
 
-- GRANT SELECT, DELETE ON TABLE mongo_data.documents_collectionId TO userName.
+- GRANT SELECT, DELETE ON TABLE documentdb_data.documents_collectionId TO userName.
 
 #### User/Role CRUD RBAC
 
@@ -406,7 +404,7 @@ In the backend any user that can CREATE ROLE can also CREATE ROLE WITH LOGIN. We
 
 For all the privileges below we need to
 
-- GRANT USAGE ON SCHEMA documentdb_api, mongo_catalog, mongo_api_v1, documentdb_core, mongo_data TO userName.
+- GRANT USAGE ON SCHEMA documentdb_api, documentdb_catalog, documentdb_api_v1, documentdb_core, documentdb_data TO userName.
 
 #### CreateRole and CreateUser
 
@@ -454,30 +452,30 @@ Today the ability to execute all our functions in all our schemas is granted to 
 #### Find
 
 1. GRANT EXECUTE ON documentdb_api.aggregate_cursor_first_page, documentdb_api.find_cursor_first_page, documentdb_api.cursor_get_more in the documentdb_api schema.
-2. GRANT USAGE ON SCHEMA documentdb_api, mongo_catalog, mongo_api_v1, documentdb_core, mongo_data TO find_role. We will need to grant execute on other internal functions as needed.
-3. GRANT SELECT ON TABLE mongo_data.documents_collectionId TO find_role
+2. GRANT USAGE ON SCHEMA documentdb_api, documentdb_catalog, documentdb_api_v1, documentdb_core, documentdb_data TO find_role. We will need to grant execute on other internal functions as needed.
+3. GRANT SELECT ON TABLE documentdb_data.documents_collectionId TO find_role
 4. If we have a collection that's sharded across multiple nodes we need to run the function grant operations within *run_command_on_worker*
 
 #### Insert
 
 1. GRANT EXECUTE ON documentdb_api.insert, documentdb_api.insert_bulk, documentdb_api.insert_one to find_role.
-2. GRANT INSERT ON TABLE mongo_data.documents_collectionId TO find_role.
-3. GRANT USAGE ON SCHEMA documentdb_api, mongo_catalog, mongo_api_v1, documentdb_core, mongo_data TO find_role. We will need to grant execute on other internal functions as needed.
-4. In case Insert would result in a new collection being created the command will fail since the role will not have INSERT privileges on mongo_catalog.collections
+2. GRANT INSERT ON TABLE documentdb_data.documents_collectionId TO find_role.
+3. GRANT USAGE ON SCHEMA documentdb_api, documentdb_catalog, documentdb_api_v1, documentdb_core, documentdb_data TO find_role. We will need to grant execute on other internal functions as needed.
+4. In case Insert would result in a new collection being created the command will fail since the role will not have INSERT privileges on documentdb_catalog.collections
 5. If we have a collection that's sharded across multiple nodes we need to run the function grant operations within *run_command_on_worker*
 
 #### Update
 
 1. GRANT EXECUTE ON documentdb_api.find_and_modify, documentdb_api.update, documentdb_api.update_bulk to find_role.
-2. GRANT UPDATE ON TABLE mongo_data.documents_collectionId TO find_role.
-3. GRANT USAGE ON SCHEMA documentdb_api, mongo_catalog, mongo_api_v1, documentdb_core, mongo_data TO find_role. We will need to grant execute on other internal functions as needed.
+2. GRANT UPDATE ON TABLE documentdb_data.documents_collectionId TO find_role.
+3. GRANT USAGE ON SCHEMA documentdb_api, documentdb_catalog, documentdb_api_v1, documentdb_core, documentdb_data TO find_role. We will need to grant execute on other internal functions as needed.
 4. If we have a collection that's sharded across multiple nodes we need to run the function grant operations within *run_command_on_worker*
 
 #### Remove
 
 1. GRANT EXECUTE ON documentdb_api.delete to find_role.
-2. GRANT DELETE ON TABLE mongo_data.documents_collectionId TO find_role.
-3. GRANT USAGE ON SCHEMA documentdb_api, mongo_catalog, mongo_api_v1, documentdb_core, mongo_data TO find_role. We will need to grant execute on other internal functions as needed.
+2. GRANT DELETE ON TABLE documentdb_data.documents_collectionId TO find_role.
+3. GRANT USAGE ON SCHEMA documentdb_api, documentdb_catalog, documentdb_api_v1, documentdb_core, documentdb_data TO find_role. We will need to grant execute on other internal functions as needed.
 4. If we have a collection that's sharded across multiple nodes we need to run the schema grant operations within *run_command_on_worker*
 
 ### Additional Built-In Roles we will support in future phases
@@ -638,11 +636,11 @@ Since DocumentDB does not support the underlying commands, the following privile
 | transitionToDedicatedConfigServer   | cluster                                |                                     |
 | transitionFromDedicatedConfigServer | cluster                                |                                     |
 
-### DB level access control Find, Insert, Update, Remove (After migrating to a new data model where PG Schema = Mongo DB)
+### Database level access control Find, Insert, Update, Remove (After migrating to a new data model where PG Schema = Compatible DB)
 
-We want to move to a schema where we map each Mongo DB to it's own PG schema of the same name. This is a feature on its own and a roadmap is to be determined on when and how this will land concerning backend support, which would achieve DB level access control in the following way:
+We want to move to a schema where we map each compatible database to it's own PG schema of the same name. This is a feature on its own and a roadmap is to be determined on when and how this will land concerning backend support, which would achieve DB level access control in the following way:
 
-| MongoDB Privilege Action | MongoDB Object | PG                                                                                                                                                                                                                                                   |
+| Compatible Privilege Action | Compatible Object | PG                                                                                                                                                                                                                                                   |
 |--------------------------|----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | **Find**                 | DB             | `GRANT USAGE ON SCHEMA DBName TO UserName; GRANT documentdb_user TO new_user; GRANT SELECT ON ALL TABLES IN SCHEMA DBName TO UserName; ALTER DEFAULT PRIVILEGES IN SCHEMA DBName GRANT SELECT ON TABLES TO UserName;`                 |
 | **Insert**               | DB             | `GRANT USAGE ON SCHEMA DBName TO UserName;`<br>`GRANT documentdb_user TO new_user;`<br>`GRANT INSERT ON ALL TABLES IN SCHEMA DBName TO UserName;`<br>`ALTER DEFAULT PRIVILEGES IN SCHEMA DBName GRANT INSERT ON TABLES TO UserName;`                 |
@@ -653,7 +651,7 @@ We want to move to a schema where we map each Mongo DB to it's own PG schema of 
 
 #### Database level
 
-To grant CreateCollection at the Mongo Database level we need to grant CREATE to a PG role for the entire schema.
+To grant CreateCollection at the compatible Database level we need to grant CREATE to a PG role for the entire schema.
 
 **Feedback**
 There is privilege creep here where the user will be able to create more than just tables
@@ -662,7 +660,7 @@ GRANT CREATE ON SCHEMA DBName TO UserName;
 
 #### Collection level
 
-Granting CreateCollection at the Mongo collection level is not natively supported in PG since PG does not let us GRANT privileges on objects that don't yet exist. **So the current plan is not to support it, we will revisit this as needed based on customer asks.**
+Granting CreateCollection at the compatible collection level is not natively supported in PG since PG does not let us GRANT privileges on objects that don't yet exist. **So the current plan is not to support it, we will revisit this as needed based on customer asks.**
 If we do want to support it we can create an empty table with this name and make the user the owner of the table and remove all privileges on this table from everyone else.
 
 ### DropCollection
@@ -673,16 +671,16 @@ In order to drop all collections within a DB the user needs to be a DBOwner. In 
 
 #### DropCollection at Collection level
 
-We have Citus dependency where pgmongo_role needs to be the owner of all the tables in PG. As a result we cannot support the DropCollection privilege at the collection level.
+We have Citus dependency where documentdb_role needs to be the owner of all the tables in PG. As a result we cannot support the DropCollection privilege at the collection level.
 
 ### ListCollections
 
-This is a database level privilege in Mongo. This maps to having USAGE privileges on a schema in PG
+This is a database level privilege for compatibility. This maps to having USAGE privileges on a schema in PG
 GRANT USAGE ON SCHEMA DBName TO userName;
 
 ### Users per DB
 
-MongoDB supports users per authentication DB. For instance the two users below are considered different users
+Compatible DB supports users per authentication DB. For instance the two users below are considered different users
 
 ```
 use marketing            // switch to the new authentication DB
@@ -706,9 +704,9 @@ db.createUser({
 })
 ```
 
-Given that we only use one Database in our backend instance, we can effectively replicate this by prefixing the MongoDB name to the Mongo user name and using this tuple as the backend role name with login.
+Given that we only use one Database in our backend instance, we can effectively replicate this by prefixing the compatible DB name to the user name and using this tuple as the backend role name with login.
 
-MongoDB command  | PG command
+Compatible command  | PG command
 -----------------|-------------------------------------------------------------------
 use DBName       | CREATE ROLE DBName.documentdb.userName WITH LOGIN  PASSWORD 'pwd';
 db.createUser({  |
@@ -720,8 +718,8 @@ We will use this format [DatabaseName].[UserName].
 
 A few things to keep in mind here
 
-1. MongoDB Database names can 64 bytes in length (Length in bytes since this is enforced by the file system)
-2. MongoDB User names can be 256 characters in length (Length in chars since these are stored as strings in the system.users collection in MongoDB)
+1. Compatible Database names can 64 bytes in length (Length in bytes since this is enforced by the file system)
+2. Compatible User names can be 256 characters in length (Length in chars since these are stored as strings in the system.users collection in the compatible DB)
 3. PG users can be a maximum of 63 bytes in length
 
 Therefore, if we choose to go this route we will run into situations where the the PG username may be too big, we will error out in these cases and explain to the user why.
@@ -781,7 +779,7 @@ db.runCommand( { revokeRolesFromUser: "accountUser01",
 
 ### Role Management API support in future phases
 
-Unlike MongoDB which supports both Users and Roles, PG only supports Roles. Users in PG are Roles with LOGIN privilege.
+Unlike the compatible DB which supports both Users and Roles, PG only supports Roles. Users in PG are Roles with LOGIN privilege.
 
 We will support the following role management commands
 
