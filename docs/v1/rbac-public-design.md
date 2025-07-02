@@ -78,18 +78,7 @@ The following sections detail how specific MongoDB roles are mapped to DocumentD
 ### Built-In roles
 
 **Note: We only support privileges for which the corresponding commands are supported by documentDB. For a list of privileges we cannot support
-since the corresponding commands are not supported by documentDB please see [Privileges with DocumentDB backend incompatibility](#privileges-with-documentdb-backend-incompatibility). None of these privileges are supported for any of the roles below.**
-
-### Link to ConnectionStatus design document
-
-| MongoDB Role                         | DB    | DocumentDB Role                                                                       | MongoDB privileges not supported | Extra privileges compared to MongoDB                                                                                                                                                                     |
-|--------------------------------------|-------|---------------------------------------------------------------------------------------|----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| readAnyDatabase                      | Admin | documentdb_readonly_role (inherits from pg_read_all_data)                             | None                             | listShards, getLog,connPoolStats,hostInfo,serverStatus, inprog,getCmdLineOpts, getParameter,getDefaultRWConcern,indexStats, getShardMap,planCacheStats,validate,currentOp,listSessions,listLocalSessions |
-| readWriteAnyDatabase                 | Admin | documentdb_readwrite_role (inherits from pg_write_all_data, pg_read_all_data) | None                             | None                                                                                                                                                                                                     |
-| userAdminAnyDatabase                 | Admin | documentdb_user_admin_role                                                            | None                             | None                                                                                                                                                                                                     |
-| root                                 | Admin | documentdb_root_role (inherits from azure_pg_admin)                                   | None                             | None                                                                                                                                                                                                     |
-| {readWriteAnyDatabase, clusterAdmin} | Admin | documentdb_admin_role (inherits from ?)                                               | None                             | None                                                                                                                                                                                                     |
-
+since the corresponding commands are not supported by documentDB please see [Privileges with DocumentDB backend incompatibility](#privileges-with-documentdb-backend-incompatibility). None of these privileges are supported for any of the roles below.**                                                                                                                                 
 #### Detailed definition for DocumentDB roles
 
 ##### documentdb_readonly_role
@@ -139,8 +128,9 @@ Eventually we want to move away from this role and have two separate roles docum
 
 ##### documentdb_root_role
 
-The upper-level system has limitations in setting roles from azure_pg_admin to EntraAdmins/DefaultNativeAdmins.
-In order to set documentdb_root_role internally we need to wait until setting roles is allowed via their Entra Admin endpoint.
+The upper-level system has limitations in setting roles from azure_pg_admin.
+In order to set documentdb_root_role internally we need to wait until setting roles is allowed via their respective Admin
+endpoint.
 
 This role will have root privileges in our system.
 
