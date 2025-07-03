@@ -7,10 +7,10 @@ integrate alternative solutions, ensuring adaptability to various security requi
 
 In a nutshell, the RBAC design includes 2 parts: 
 
-- Role mapping: for compatibility, corresponding roles are created and implemented in the backend which allows for 
+- *Role mapping*: for compatibility, corresponding roles are created and implemented in the backend which allows for 
 previlege actions. As a baseline, the specifications around role mapping takes up most of this document.
 
-- Integrating with policy engines: while role mapping essentially delegates the fundamental security to the database backend,
+- *Integrating with policy engines*: while role mapping essentially delegates the fundamental security to the database (DB) backend,
 we also would like to incorporate organizational policies towards a secure, scalable, and standardized authorization mechanism,
 as well as fostering interoperability.
 
@@ -65,19 +65,19 @@ as well as fostering interoperability.
     - [revokeRolesFromRole](#revokerolesfromrole)
 
 ## Role Mapping
-Role mapping is the process of translating the compatible database (DB)'s role-based access control (RBAC) system to PostgreSQL (PG)'s role and privilege system. Since MDB and PG have different role models and privilege structures, we need to map those compatible roles and their associated privileges to equivalent PG roles and permissions.
+Role mapping is the process of translating the compatible database's role-based access control (RBAC) system to PostgreSQL (PG)'s role and privilege system. Since the compatible database (CDB) and PG have different role models and privilege structures, we need to map those compatible roles and their associated privileges to equivalent PG roles and permissions.
 
 This mapping ensures that:
 - Users can authenticate and receive appropriate permissions in the PG backend
-- Role semantics with regard to MDB are preserved while leveraging PG's native security features
-- Administrative operations in MDB (like user management) properly translate to PG role operations
-- Built-in MDB roles (like `readAnyDatabase`, `readWriteAnyDatabase`) have corresponding DocumentDB roles with equivalent capabilities
+- Role semantics with regard to CDB are preserved while leveraging PG's native security features
+- Administrative operations in CDB (like user management) properly translate to PG role operations
+- Built-in CDB roles (like `readAnyDatabase`, `readWriteAnyDatabase`) have corresponding DocumentDB roles with equivalent capabilities
 
 The following sections detail how specific compatible roles are mapped to DocumentDB/PG roles, including any differences in supported privileges. In addition, the Appendix section contains what will be implemented in later phases, as well as earlier designs we considered but abandoned.
 
 ### Built-In roles
 
-**Note: We only support privileges for which the corresponding commands are supported by documentDB. For a list of privileges we cannot support
+**Note: We only support privileges for which the corresponding commands are supported by DocumentDB. For a list of privileges we cannot support
 since the corresponding commands are not supported by documentDB please see [Privileges with DocumentDB backend incompatibility](#privileges-with-documentdb-backend-incompatibility). None of these privileges are supported for any of the roles below.**                                                                                                                                 
 #### Detailed definition for DocumentDB roles
 
@@ -147,7 +147,7 @@ We will test to ensure the feature is compatible with each of these.
 
 ### Custom Roles
 
-Unlike the compatible DB which supports both Users and Roles, PG only supports Roles. Users in PG are Roles with LOGIN privilege.
+Unlike the CDB which supports both Users and Roles, PG only supports Roles. Users in PG are Roles with LOGIN privilege.
 
 1. createRole
 2. dropRole
@@ -654,7 +654,7 @@ We want to move to a schema where we map each compatible database to it's own PG
 
 #### Database level
 
-To grant CreateCollection at the compatible Database level we need to grant CREATE to a PG role for the entire schema.
+To grant CreateCollection at the compatible database level we need to grant CREATE to a PG role for the entire schema.
 
 **Feedback**
 There is privilege creep here where the user will be able to create more than just tables
@@ -721,8 +721,8 @@ We will use this format [DatabaseName].[UserName].
 
 A few things to keep in mind here
 
-1. Compatible Database names can 64 bytes in length (Length in bytes since this is enforced by the file system)
-2. Compatible User names can be 256 characters in length (Length in chars since these are stored as strings in the system.users collection in the compatible DB)
+1. Compatible database names can 64 bytes in length (Length in bytes since this is enforced by the file system)
+2. Compatible User names can be 256 characters in length (Length in chars since these are stored as strings in the system.users collection in the CDB)
 3. PG users can be a maximum of 63 bytes in length
 
 Therefore, if we choose to go this route we will run into situations where the the PG username may be too big, we will error out in these cases and explain to the user why.
@@ -782,7 +782,7 @@ db.runCommand( { revokeRolesFromUser: "accountUser01",
 
 ### Role Management API support in future phases
 
-Unlike the compatible DB which supports both Users and Roles, PG only supports Roles. Users in PG are Roles with LOGIN privilege.
+Unlike the CDB which supports both Users and Roles, PG only supports Roles. Users in PG are Roles with LOGIN privilege.
 
 We will support the following role management commands
 
