@@ -1,6 +1,6 @@
 # Role Based Access Control (RBAC) in DocumentDB
 
-In this document, we present the comprehensive design for implementing Role-Based Access Control (RBAC) in [DocumentDB](https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/oss),
+In this document, we present a comprehensive design for implementing Role-Based Access Control (RBAC) in [DocumentDB](https://learn.microsoft.com/en-us/azure/cosmos-db/mongodb/vcore/oss),
 aimed at enhancing security and manageability. This design outlines the initial features to be delivered to customers, with
 future enhancements detailed in the Appendix. Our approach includes the flexibility to disable the built-in RBAC engine and
 integrate alternative solutions, ensuring adaptability to various security requirements.
@@ -319,7 +319,7 @@ Sample output
 
 ### User CRUD (Create, Read, Update and Delete) API changes
 
-For all DocumentDB users we will create ROLE WITH LOGIN in PG, which is currently in place.
+For all DocumentDB users, we will create ROLE WITH LOGIN in PG, which is currently in place.
 
 #### UpdateUser
 
@@ -412,7 +412,7 @@ For all the privileges below we need to
 
 #### UpdateRole and UpdateUser, DropRole and DropUser, GrantRole and RevokeRole across all databases
 
-In PG in order to drop/alter/update another role one of these sets of conditions must be met. And these privileges come together as a set, PG does not let us speparate these.
+In PG, in order to drop/alter/update another role one of these sets of conditions must be met. And these privileges come together as a set, PG does not let us speparate these.
 
 The user must be a PG SUPERUSER
 
@@ -429,13 +429,16 @@ Any user who needs to have the ability to DropRole, DropUser, GrantRole and Revo
 
 ## Integrating with other policy engines
 
-In future phases, we will build in the support to integrate with other policy engines such as Azure Purview. In order to do this we will need to add support for the following
+In future phases, we will build in the support to integrate with other policy engines such as Azure Purview. In order to do this, we will need to add support for the following
 
 1. Create roles based on Policy
 2. Policy Engine Aggregator
 3. A translation layer that can translate these policy based roles into native PG roles
 
 ![](images/integration_with_external_policy_engine.png)
+
+As the above flowchart shows, the implementation depends on the completion of role mapping and more details should follow when the
+roles and priviledges progress further.
 
 ## APPENDIX
 
